@@ -10,9 +10,9 @@ app.use(express.json());
 let scanRequested = false;
 let scanTimeout: NodeJS.Timeout | null = null;
 let receivedPlayers = new Set<string>();
-<<<<<<< HEAD
 const registrationCooldown = new Map<string, number>();
 let isScanLocked = false;
+let targetUser: string | null = null;
 
 type FetchLike = (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => ReturnType<typeof fetch>;
 
@@ -21,33 +21,16 @@ const getFetch = (() => {
     return async (): Promise<FetchLike> => {
         if (cached) return cached;
         const { default: nodeFetch } = await import('node-fetch');
-        cached = nodeFetch as FetchLike;
+        cached = nodeFetch as unknown as FetchLike;
         return cached;
     };
 })();
-=======
-let targetUser: string | null = null; // null means all users
-
-// Scan result caching
-interface CachedScanResult {
-    onlineClanMembers: string[];
-    activeModUsers: string[];
-    totalScanned: number;
-    timestamp: number;
-}
-let cachedScanResult: CachedScanResult | null = null;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-// Debouncing for scan requests
-let lastScanRequest = 0;
-const SCAN_DEBOUNCE_MS = 3000; // 3 seconds between scans
->>>>>>> 21495387f9666f58a8e149929a61a350157668df
 
 // 1. Heartbeat from Mod Client
 app.post('/api/heartbeat', (req: Request, res: Response) => {
     // API Key authentication (case-insensitive)
     const apiKey = req.header('X-API-Key') || req.header('x-api-key');
-    const { username } = req.body;
+    const { username } = req.body as { username?: string };
 
     // We allow string or undefined for username, though usually mod sends it.
 
@@ -120,58 +103,34 @@ app.post('/api/tablist', (req: Request, res: Response) => {
 // 3. Internal: Trigger Scan (from Bot)
 // This endpoint is called by the local Discord Bot to start the scanning process
 app.post('/api/scan-request', (req: Request, res: Response) => {
-<<<<<<< HEAD
+    const { targetUser: requestedUser } = req.body as { targetUser?: string | null };
+
     if (isScanLocked) {
         res.status(409).json({ error: 'Scan already in progress. Please wait.' });
         return;
     }
     isScanLocked = true;
-=======
-    // Debounce scan requests
-    const now = Date.now();
-    if (now - lastScanRequest < SCAN_DEBOUNCE_MS) {
-        res.status(429).json({ error: 'Tarama çok sık yapılıyor. Lütfen bekleyin.' });
-        return;
-    }
-    lastScanRequest = now;
-
-    const { targetUser: requestedUser } = req.body;
-    targetUser = requestedUser || null;
->>>>>>> 21495387f9666f58a8e149929a61a350157668df
 
     scanRequested = true;
     receivedPlayers.clear();
-    cachedScanResult = null; // Invalidate cache
+    targetUser = typeof requestedUser === 'string' && requestedUser.trim().length > 0 ? requestedUser : null;
 
-    console.log(`Scan requested via API. Target: ${targetUser || 'ALL USERS'}`);
+    console.log(`Scan requested via API. Target: ${targetUser ?? 'ALL USERS'}`);
 
     if (scanTimeout) clearTimeout(scanTimeout);
     scanTimeout = setTimeout(() => {
         scanRequested = false;
-<<<<<<< HEAD
         isScanLocked = false;
-=======
         targetUser = null;
->>>>>>> 21495387f9666f58a8e149929a61a350157668df
         console.log('Scan window closed');
-    }, 15000); // 15s scan window (reduced from 30s)
+    }, 30000); // 30s scan window
 
     res.json({ success: true, message: 'Scan initiated', targetUser });
 });
 
 // 4. Internal: Get Results (from Bot)
 app.get('/api/scan-results', (req: Request, res: Response) => {
-<<<<<<< HEAD
     const peek = req.query.peek === '1' || req.query.peek === 'true';
-=======
-    // Check cache first
-    if (cachedScanResult && (Date.now() - cachedScanResult.timestamp < CACHE_TTL)) {
-        console.log('Returning cached scan results');
-        res.json(cachedScanResult);
-        return;
-    }
-
->>>>>>> 21495387f9666f58a8e149929a61a350157668df
     const allFound = Array.from(receivedPlayers);
     const clanMembers = getClanMembers();
     const activeMods = getActiveModUsers();
@@ -189,7 +148,6 @@ app.get('/api/scan-results', (req: Request, res: Response) => {
         console.log('Matched Members:', onlineClanMembers);
     }
 
-<<<<<<< HEAD
     const scanReady = !scanRequested || allFound.length > 0;
 
     res.json({
@@ -204,18 +162,8 @@ app.get('/api/scan-results', (req: Request, res: Response) => {
         scanRequested = false;
         isScanLocked = false;
         receivedPlayers.clear();
+        targetUser = null;
     }
-=======
-    // Cache the results
-    cachedScanResult = {
-        onlineClanMembers,
-        activeModUsers: activeMods,
-        totalScanned: allFound.length,
-        timestamp: Date.now()
-    };
-
-    res.json(cachedScanResult);
->>>>>>> 21495387f9666f58a8e149929a61a350157668df
 });
 
 // 5. Root Endpoint (for uptime checks)
@@ -232,7 +180,6 @@ const startKeepAlive = () => {
     }
 
     console.log(`Keep-Alive system started. Pinging ${url} every 14 minutes.`);
-<<<<<<< HEAD
     
     const ping = async () => {
         try {
@@ -243,16 +190,6 @@ const startKeepAlive = () => {
         } catch (err) {
             console.error('Keep-Alive Ping: Error', err);
         }
-=======
-
-    const ping = () => {
-        fetch(url)
-            .then(res => {
-                if (res.ok) console.log(`Keep-Alive Ping: Success (${res.status})`);
-                else console.error(`Keep-Alive Ping: Failed (${res.status})`);
-            })
-            .catch(err => console.error('Keep-Alive Ping: Error', err));
->>>>>>> 21495387f9666f58a8e149929a61a350157668df
     };
 
     // Initial ping

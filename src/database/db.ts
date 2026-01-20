@@ -75,11 +75,7 @@ export function initDb() {
 }
 
 export function getClanMembers(): string[] {
-<<<<<<< HEAD
     loadDb();
-=======
-    // Use in-memory cache, no need to reload
->>>>>>> 21495387f9666f58a8e149929a61a350157668df
     return dbCache.clanMembers.map(m => m.minecraftUsername);
 }
 
